@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.db.base import Base
 
 # Import models so SQLAlchemy registers their tables.
-from app.models import user , customer  # noqa: F401
+from app.models import user , customer , supplier # noqa: F401
 
 
 config = context.config
