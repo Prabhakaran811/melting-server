@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, func
 from app.db.base import Base
-
+from sqlalchemy.orm import relationship
 
 class Element(Base):
     __tablename__ = "elements"
@@ -30,3 +30,10 @@ class Element(Base):
         onupdate=func.now(),
         nullable=False
     )
+
+    iron_types = relationship(
+    "IronType",
+    secondary="iron_type_elements",
+    viewonly=True,
+    lazy="selectin"
+)
