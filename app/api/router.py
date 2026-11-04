@@ -7,6 +7,7 @@ from app.routers import packing_router
 from app.routers import element_router
 from app.routers import iron_type_router
 from app.routers import raw_material_router
+from app.routers import wire_router
 api_router = APIRouter()
 
 api_router.include_router(
@@ -33,3 +34,4 @@ api_router.include_router(packing_router.router)
 api_router.include_router(element_router.router)
 api_router.include_router(iron_type_router.router)
 api_router.include_router(raw_material_router.router)
+api_router.include_router(wire_router.router)
