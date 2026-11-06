@@ -9,6 +9,7 @@ from app.routers import iron_type_router
 from app.routers import raw_material_router
 from app.routers import wire_router
 from app.routers import element_stock_router
+from app.routers import raw_material_stock_router
 api_router = APIRouter()
 
 api_router.include_router(
@@ -37,3 +38,4 @@ api_router.include_router(iron_type_router.router)
 api_router.include_router(raw_material_router.router)
 api_router.include_router(wire_router.router)
 api_router.include_router(element_stock_router.router)
+api_router.include_router(raw_material_stock_router.router)
