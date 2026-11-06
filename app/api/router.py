@@ -11,6 +11,7 @@ from app.routers import wire_router
 from app.routers import element_stock_router
 from app.routers import raw_material_stock_router
 from app.routers import wire_stock_router
+from app.routers import aim_router
 api_router = APIRouter()
 
 api_router.include_router(
@@ -41,3 +42,4 @@ api_router.include_router(wire_router.router)
 api_router.include_router(element_stock_router.router)
 api_router.include_router(raw_material_stock_router.router)
 api_router.include_router(wire_stock_router.router)
+api_router.include_router(aim_router.router)
