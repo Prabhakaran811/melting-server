@@ -1,65 +1,89 @@
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-
 from app.schemas.furnace_cycle_schema import (
     FurnaceCycleStart,
-    FurnaceCycleResponse
+    FurnaceCycleResponse,
 )
-
-from app.services.furnace_cycle_service import (
-    FurnaceCycleService
-)
+from app.services.furnace_cycle_service import FurnaceCycleService
 
 
 router = APIRouter(
-    prefix="/furnace-cycles",
-    tags=["Furnace Cycles"]
+    prefix="/furnaces",
+    tags=["Furnace Operations"],
 )
 
 
 @router.post(
-    "/furnaces/{furnace_id}/start",
-    response_model=FurnaceCycleResponse,
-    status_code=status.HTTP_201_CREATED
+    "/{furnace_id}/start",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
 )
-def start_furnace_cycle(
+def start_furnace(
     furnace_id: int,
     data: FurnaceCycleStart,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    return FurnaceCycleService.start_cycle(
-        db,
-        furnace_id,
-        data
+    cycle = FurnaceCycleService.start_furnace(
+        db=db,
+        furnace_id=furnace_id,
+        data=data,
     )
+
+    return {
+        "success": True,
+        "message": "Furnace started successfully",
+        "data": FurnaceCycleResponse.model_validate(cycle),
+    }
 
 
 @router.get(
-    "/furnaces/{furnace_id}/current",
-    response_model=FurnaceCycleResponse | None
+    "/{furnace_id}/current-cycle",
+    response_model=dict,
 )
-def get_current_furnace_cycle(
+def get_current_cycle(
     furnace_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    return FurnaceCycleService.get_current_cycle(
-        db,
-        furnace_id
+    cycle = FurnaceCycleService.get_current_cycle(
+        db=db,
+        furnace_id=furnace_id,
     )
+
+    if not cycle:
+        return {
+            "success": True,
+            "message": "No running cycle found",
+            "data": None,
+        }
+
+    return {
+        "success": True,
+        "message": "Current furnace cycle retrieved successfully",
+        "data": FurnaceCycleResponse.model_validate(cycle),
+    }
 
 
 @router.get(
-    "/furnaces/{furnace_id}/history",
-    response_model=list[FurnaceCycleResponse]
+    "/{furnace_id}/cycles",
+    response_model=dict,
 )
-def get_furnace_cycle_history(
+def get_cycle_history(
     furnace_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    return FurnaceCycleService.get_cycle_history(
-        db,
-        furnace_id
+    cycles = FurnaceCycleService.get_cycle_history(
+        db=db,
+        furnace_id=furnace_id,
     )
+
+    return {
+        "success": True,
+        "message": "Furnace cycle history retrieved successfully",
+        "data": [
+            FurnaceCycleResponse.model_validate(cycle)
+            for cycle in cycles
+        ],
+    }

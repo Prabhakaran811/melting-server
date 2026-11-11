@@ -14,6 +14,9 @@ from app.routers import wire_stock_router
 from app.routers import aim_router
 from app.routers import order_router
 from app.routers import furnace_cycle_router
+from app.routers import furnace_charge_mix_router
+from app.routers import spectrum_result_router
+from app.routers import furnace_details_router
 api_router = APIRouter()
 
 api_router.include_router(
@@ -27,6 +30,12 @@ api_router.include_router(
     auth_router.router,
     prefix="/auth",
     tags=["Authentication"],
+)
+
+api_router.include_router(
+    furnace_details_router.router,
+    prefix="/furnaces",
+    tags=["Furnace Details"]
 )
 
 api_router.include_router(customer_router.router)
@@ -47,3 +56,5 @@ api_router.include_router(wire_stock_router.router)
 api_router.include_router(aim_router.router)
 api_router.include_router(order_router.router)
 api_router.include_router(furnace_cycle_router.router)
+api_router.include_router(furnace_charge_mix_router.router)
+api_router.include_router(spectrum_result_router.router)
