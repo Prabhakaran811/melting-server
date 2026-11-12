@@ -44,7 +44,7 @@ class FurnaceCycleRepository:
         )
         sequence_number = result.scalar_one()
 
-        return f"H{sequence_number:05d}"
+        return f"HEAT-{sequence_number:06d}"
 
     @staticmethod
     def create(

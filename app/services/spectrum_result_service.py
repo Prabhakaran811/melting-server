@@ -59,10 +59,9 @@ class SpectrumResultService:
 
         payload = unquote(payload).strip()
 
-        # Support the legacy format if the literal suffix
-        # reaches FastAPI instead of being stripped as a URL fragment.
         furnace_number = None
 
+        # Support legacy payload format.
         if "#&fur:" in payload:
             payload, furnace_part = payload.rsplit("#&fur:", 1)
             furnace_number = furnace_part.strip()
@@ -72,10 +71,11 @@ class SpectrumResultService:
 
         values = payload.split(",")
 
+        heat_no = None
         operator_name = None
         elements = {}
 
-        for index, item in enumerate(values):
+        for item in values:
 
             item = item.strip()
 
@@ -93,7 +93,25 @@ class SpectrumResultService:
             key = key.strip()
             value = value.strip()
 
+            # Heat number is text, not a chemical element.
+            if key == "H":
+                if heat_no is not None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Duplicate heat number field",
+                    )
+
+                heat_no = value
+                continue
+
+            # Operator name is also text.
             if key == "T":
+                if operator_name is not None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Duplicate operator field",
+                    )
+
                 operator_name = value
                 continue
 
@@ -101,6 +119,12 @@ class SpectrumResultService:
                 raise HTTPException(
                     status_code=400,
                     detail="Element symbol cannot be empty",
+                )
+
+            if key not in ELEMENT_NAMES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported element symbol: {key}",
                 )
 
             if key in elements:
@@ -126,6 +150,18 @@ class SpectrumResultService:
 
             elements[key] = number
 
+        if not heat_no:
+            raise HTTPException(
+                status_code=400,
+                detail="Heat number is missing",
+            )
+
+        if not operator_name:
+            raise HTTPException(
+                status_code=400,
+                detail="Operator name is missing",
+            )
+
         if not elements:
             raise HTTPException(
                 status_code=400,
@@ -133,6 +169,7 @@ class SpectrumResultService:
             )
 
         return {
+            "heat_no": heat_no,
             "operator_name": operator_name,
             "elements": elements,
             "furnace_number_from_payload": furnace_number,
@@ -146,13 +183,11 @@ class SpectrumResultService:
     ):
 
         try:
+
             parsed = SpectrumResultService.parse_spectrum_payload(
                 payload
             )
 
-            # Use an explicit query parameter first.
-            # Legacy suffix is supported only if it was actually
-            # transmitted to the application.
             furnace_number = (
                 furnace_number
                 or parsed["furnace_number_from_payload"]
@@ -162,16 +197,15 @@ class SpectrumResultService:
                 raise HTTPException(
                     status_code=400,
                     detail=(
-                        "Furnace number was not received. "
-                        "The URL fragment after # is not sent by "
-                        "standard HTTP clients. Provide fur as a "
-                        "query parameter or configure a reliable "
-                        "machine-to-furnace mapping."
+                        "Furnace number is missing. "
+                        "Provide fur as a query parameter."
                     ),
                 )
 
             furnace_number = str(furnace_number).strip()
+            heat_no = parsed["heat_no"]
 
+            # Find furnace using its machine furnace number.
             furnace = Repository.get_furnace_by_number(
                 db,
                 furnace_number,
@@ -185,6 +219,7 @@ class SpectrumResultService:
                     ),
                 )
 
+            # Lock and find the current running cycle.
             cycle = Repository.get_running_cycle_for_update(
                 db,
                 furnace.id,
@@ -199,6 +234,17 @@ class SpectrumResultService:
                     ),
                 )
 
+            # Ensure machine result belongs to this exact heat.
+            if cycle.heat_no != heat_no:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Heat number mismatch. "
+                        f"Machine sent {heat_no}, "
+                        f"but current furnace heat is {cycle.heat_no}"
+                    ),
+                )
+
             if cycle.active_stage != "Spectrum Testing":
                 raise HTTPException(
                     status_code=409,
@@ -208,6 +254,7 @@ class SpectrumResultService:
                     ),
                 )
 
+            # Charge Mix must be confirmed before spectrum testing.
             charge_mix = Repository.get_confirmed_charge_mix(
                 db,
                 cycle.id,
@@ -219,6 +266,7 @@ class SpectrumResultService:
                     detail="Charge Mix is not confirmed",
                 )
 
+            # Generate the next test number.
             test_number = Repository.get_next_test_number(
                 db,
                 cycle.id,
@@ -232,11 +280,12 @@ class SpectrumResultService:
                 raw_payload=payload,
             )
 
+            # Save individual chemical element values.
             for symbol, percentage in parsed["elements"].items():
 
                 element = SpectrumResultElement(
                     element_symbol=symbol,
-                    element_name=ELEMENT_NAMES.get(symbol),
+                    element_name=ELEMENT_NAMES[symbol],
                     percentage=percentage,
                 )
 
@@ -245,6 +294,8 @@ class SpectrumResultService:
             Repository.create_result(db, result)
 
             db.commit()
+
+            db.refresh(result)
 
             saved_result = Repository.get_result_by_id(
                 db,
