@@ -17,6 +17,7 @@ from app.routers import furnace_cycle_router
 from app.routers import furnace_charge_mix_router
 from app.routers import spectrum_result_router
 from app.routers import furnace_details_router
+from app.routers import report_router
 api_router = APIRouter()
 
 api_router.include_router(
@@ -58,3 +59,4 @@ api_router.include_router(order_router.router)
 api_router.include_router(furnace_cycle_router.router)
 api_router.include_router(furnace_charge_mix_router.router)
 api_router.include_router(spectrum_result_router.router)
+api_router.include_router(report_router.router)
